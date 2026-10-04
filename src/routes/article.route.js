@@ -5,18 +5,19 @@ const {postArticle, getAllArticle, getArticleById, updateArticleById, deleteArti
 const requireAuth = require('../middlewares/requireAuth');
 
 const router = express.Router();
+router.use(requireAuth);
 
-router.post('/articles', requireAuth, postArticle);
+router.post('/articles', postArticle);
 
 router.get('/articles', getAllArticle);
 
 router.get('/articles/search', searchArticles);
 
-router.get('/articles/:id', requireAuth, getArticleById);
+router.get('/articles/:id', getArticleById);
 
-router.put('/articles/:id', requireAuth, updateArticleById);
+router.put('/articles/:id', updateArticleById);
 
-router.delete('/articles/:id', requireAuth, deleteArticleById);
+router.delete('/articles/:id', deleteArticleById);
 
 module.exports = router;
 
