@@ -1,83 +1,89 @@
-const userModel = require("../models/user.model.js");
-const Joi = require("joi");
-const bycrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const hashPassword = require("../utils/bcrypt.js");
+const usermodel = require('../models/user.model');
+const { hashPassword, comparePassword } = require('../utils/bcrypt');
+const jwt = require('jsonwebtoken');
+const { uploadImage, deleteImages } = require('../utils/cloudinary');
+
+
 
 
 const registerUser = async (req, res, next) => {
-
-    const registerSchema = Joi.object({
-        name: Joi.string().min(5).max(20).required(),
-        email: Joi.string().email().required(),
-        password: Joi.string().min(8).required()
-    });
-
-    const {error} = registerSchema.validate(req.body);
-    if (error) {
-        return res.status(400).json({message: error.details[0].message});
-    };
-
-    try {
-    const {name, email, password} = req.body;
-
-    const existingUser = await userModel.findOne({email: email});
+    try {const {email,name,password} = req.body;
+    const existingUser = await usermodel.findOne({ email: email });
     if (existingUser) {
-        return res.status(400).json({message: "User already exists"});
+        return res.status(400).json({ message: 'User already exists' });
     }
 
-   await hashPassword(password)
-    
-    const user = new userModel({
+    const hashed = await hashPassword(password);
+    const user = new usermodel({
         name: name,
         email: email,
         password: hashed
-    });
+    })
+
     await user.save();
-    return res.status(200).json({message: "User registered successfully"});
+   return  res.status(201).json({ message: 'User registered successfully' });
+
+    } catch (error) {
+
+        next(error);
+    }
+
+    };
+
+    const loginUser = async (req, res, next) => {
+try {
+    const { email, password } = req.body;
+        const user = await usermodel.findOne({ email: email })
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+
+        const isMatch = await comparePassword(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        const token = jwt.sign(
+            { userid: user._id,name: user.name},
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        const responseUser = {
+            id: user._id,
+            email: user.email,
+            name: user.name
+        };
+
+        return res.status(200).json({ message: 'User logged in successfully', user: responseUser, token });
     } catch (error) {
         next(error);
     }
-};
-
-const loginUser = async (req, res, next) => {
-    const loginSchema = Joi.object({
-        email: Joi.string().email().required(),
-        password: Joi.string().min(8).required()
-    });
-
-    const {error} = loginSchema.validate(req.body);
-    if (error) {
-        return res.status(400).json({message: error.details[0].message});
     };
 
-    try {
-    const{email, password} = req.body;
-    const user = await userModel.findOne({email: email});
-    if (!user) {
-        return res.status(400).json({message: "User does not exist"});
-    }
 
-    const isMatch = await bycrypt.compare(password, user.password);
-    if (!isMatch) throw new Error("Invalid credentials");
+    const uploadProfilePicture = async (req, res, next) => {
+        let uploaded;
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: 'Please attach an image in the "profilePicture" field' });
+            }
+            uploaded = await uploadImage(req.file, 'avatars');
 
-    const token = jwt.sign(
-        {userId: user._id, name: user.name},
-        process.env.JWT_SECRET,
-        {expiresIn: "7d"}
-    );
+            const oldPicture = req.user.profilePicture;
+            req.user.profilePicture = uploaded;
+            await req.user.save();
 
-    const resUser = {
-        _id: user._id,
-        email: user.email,
-        name: user.name
+            await deleteImages([oldPicture]);
+            return res.status(200).json({
+                message: 'Profile picture updated successfully',
+                profilePicture: req.user.profilePicture.url
+            });
+        } catch (error) {
+            await deleteImages([uploaded]);
+            next(error);
+        }
     };
 
-    return res.status(200).json({message: "User logged in successfully", resUser, token});
-    
-    } catch (error) {
-        next(error);
-    };
-};
-
-module.exports = {registerUser, loginUser};
+    module.exports = {loginUser, registerUser, uploadProfilePicture};

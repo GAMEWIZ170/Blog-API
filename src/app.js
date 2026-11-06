@@ -1,25 +1,27 @@
-require('dotenv').config();
-
 const express = require('express');
 const cors = require('cors');
-
-const ArticleRoutes = require('./routes/article.route.js');
-const UserRoutes = require('./routes/user.routes.js');
-
-const errorHandler = require('./middlewares/errorHandler.js');
-const logger = require('./middlewares/logger.js');
+const logger = require('./middlewares/logger');
+const errorHandler = require('./middlewares/errorhandler');
+const articleRoutes = require('./routes/article.route');
+const userRoutes = require('./routes/user.route');
 
 const app = express();
 
 app.use(express.json());
-app.use(cors("*"));
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : [];
 
+app.use(cors(allowedOrigins.length > 0 ? { origin: allowedOrigins } : { origin: false }));
 app.use(logger);
 
-app.use('/api', ArticleRoutes);
-app.use('/api/user', UserRoutes);
+app.get("/", (req, res) => {
+  res.json({ message: "jonathan API is running" });
+});
+
+app.use("/api/user/", userRoutes);
+app.use('/api', articleRoutes);
 
 app.use(errorHandler);
 
-module.exports = app
-
+module.exports = app;

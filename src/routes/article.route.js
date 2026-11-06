@@ -1,13 +1,13 @@
-const express = require('express');
+const express = require("express");
+const router = express.Router()
 
-const searchArticles = require('../controllers/searchArticles.controller');
-const {postArticle, getAllArticle, getArticleById, updateArticleById, deleteArticleById} = require('../controllers/article.controller');
-const requireAuth = require('../middlewares/requireAuth');
+const { postArticle, getAllArticle, searchArticles, getArticleById, updateArticleById, deleteArticleById } = require("../controllers/article.controllers");
+const { uploadPostImages } = require("../middlewares/upload");
+const requireAuth = require("../middlewares/requireAuth");
 
-const router = express.Router();
 router.use(requireAuth);
 
-router.post('/articles', postArticle);
+router.post('/articles', uploadPostImages, postArticle);
 
 router.get('/articles', getAllArticle);
 
@@ -20,7 +20,3 @@ router.put('/articles/:id', updateArticleById);
 router.delete('/articles/:id', deleteArticleById);
 
 module.exports = router;
-
-
-
-
